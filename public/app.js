@@ -8,6 +8,21 @@ const goalStatus = document.querySelector('#goal-status');
 
 const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const dateFormatter = new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' });
+const API_BASE_URL = window.API_BASE_URL || '';
+
+async function fetchJson(endpoint, options = {}) {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+  const contentType = response.headers.get('content-type') || '';
+  const data = contentType.includes('application/json') ? await response.json().catch(() => null) : null;
+
+  if (!response.ok) {
+    const message = data?.message || `Falha na requisição ${endpoint} (${response.status})`;
+    const detail = data?.detail ? ` Detalhe: ${data.detail}` : '';
+    throw new Error(`${message}${detail}`);
+  }
+
+  return data;
+}
 
 function parseMoney(value) {
   const normalized = value.trim().replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
@@ -61,9 +76,7 @@ function renderGoal(data) {
 
 async function loadBudget() {
   try {
-    const response = await fetch('/api/budget');
-    if (!response.ok) throw new Error('Não foi possível carregar os dados salvos.');
-    const data = await response.json();
+    const data = await fetchJson('/api/budget');
     form.monthlyIncome.value = inputMoney(data.monthlyIncome);
     form.monthlyExpenses.value = inputMoney(data.monthlyExpenses);
     form.startDate.value = data.startDate;
@@ -87,11 +100,9 @@ form.addEventListener('submit', async (event) => {
     if (!Number.isFinite(payload.monthlyIncome) || !Number.isFinite(payload.monthlyExpenses)) {
       throw new Error('Informe valores monetários válidos.');
     }
-    const response = await fetch('/api/budget', {
+    const data = await fetchJson('/api/budget', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message);
     render(data);
     results.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
@@ -113,9 +124,7 @@ document.querySelectorAll('.nav-button').forEach((button) => {
 
 async function loadSavingsGoal() {
   try {
-    const response = await fetch('/api/savings-goal');
-    if (!response.ok) throw new Error('Não foi possível carregar a meta salva.');
-    const data = await response.json();
+    const data = await fetchJson('/api/savings-goal');
     if (!data) return;
     goalForm.targetAmount.value = inputMoney(data.targetAmount);
     goalForm.months.value = data.months;
@@ -137,11 +146,9 @@ goalForm.addEventListener('submit', async (event) => {
       months: Number(goalForm.months.value)
     };
     if (!Number.isFinite(payload.targetAmount)) throw new Error('Informe um valor válido para a meta.');
-    const response = await fetch('/api/savings-goal', {
+    const data = await fetchJson('/api/savings-goal', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
     });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.message);
     renderGoal(data);
     goalResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
