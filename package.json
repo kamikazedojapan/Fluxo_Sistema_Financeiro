@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test test/budgetCalculator.test.js test/savingsCalculator.test.js"
+    "test": "node --test test/budgetCalculator.test.js test/savingsCalculator.test.js",
+    "lint": "eslint sec public test",
+    "format": "prettier --write ."
   },
   "engines": {
     "node": "20.x"
@@ -16,5 +18,25 @@
     "dotenv": "^16.4.7",
     "express": "^5.1.0",
     "mongoose": "^8.16.0"
+  },
+  "directories": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kamikazedojapan/Fluxo_Sistema_Financeiro.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/kamikazedojapan/Fluxo_Sistema_Financeiro/issues"
+  },
+  "homepage": "https://github.com/kamikazedojapan/Fluxo_Sistema_Financeiro#readme",
+  "devDependencies": {
+    "eslint": "^10.6.0",
+    "nodemon": "^3.1.14",
+    "prettier": "^3.8.5"
   }
 }
