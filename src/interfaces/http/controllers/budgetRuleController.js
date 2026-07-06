@@ -1,6 +1,27 @@
-const { notImplemented } = require('./notImplementedController');
+const {
+    getActiveBudgetRule,
+    updateActiveBudgetRule,
+} = require('../../../application/budgetRule/budgetRuleUseCases');
+
+async function handleGetBudgetRule(_request, response, next) {
+    try {
+        const rule = await getActiveBudgetRule();
+        return response.json(rule)
+    } catch (error) {
+        return next(error);
+    }
+}
+
+async function handleUpdateBudgetRule(request, response, next) {
+    try {
+        const rule = await updateActiveBudgetRule(request.body);
+        return response.json(rule);
+    } catch (error) {
+        return next(error);
+    }
+}
 
 module.exports = {
-  getBudgetRule: notImplemented('Consulta da regra financeira 50-30-20'),
-  updateBudgetRule: notImplemented('Atualização da regra financeira 50-30-20'),
+    getBudgetRule: handleGetBudgetRule,
+    updateBudgetRule: handleUpdateBudgetRule,
 };

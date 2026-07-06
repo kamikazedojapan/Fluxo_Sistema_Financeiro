@@ -1,4 +1,4 @@
-const { budgetRule } = require('../models');
+const { BudgetRule } = require('../models');
 
 const DEFAULT_BUDGET_RULE = {
   needsPercent: 50,
@@ -12,63 +12,64 @@ function validateBudgetRulePercentages({
   wantsPercent,
   investmentsPercent,
 }) {
-  const total = Number(needsPercent) + Number(wantsPercent) + Number(investmentsPercent);
+  const total =
+    Number(needsPercent) + Number(wantsPercent) + Number(investmentsPercent);
 
   if (total !== 100) {
     const error = new Error(
       'A soma dos percentuais da regra financeira deve ser igual a 100%.'
     );
 
-    error.statusCode = 400
+    error.statusCode = 400;
 
     throw error;
   }
 }
 
 async function findActive() {
-  return BudgetRule.findOne({ active: true }).sort({ updateAt: -1 }).lean();
+  return BudgetRule.findOne({ active: true }).sort({ updatedAt: -1 }).lean();
 }
 
 async function createDefaultIfNotExists() {
-  const activeRule = await findActive();
+  const activeBudgetRule = await findActive();
 
-  if (activeRule) {
-    return activeRule;
+  if (activeBudgetRule) {
+    return activeBudgetRule;
   }
 
-  const rule = await BudgetRule.create(DEFAULT_BUDGET_RULE);
+  const createdBudgetRule = await BudgetRule.create(DEFAULT_BUDGET_RULE);
 
-  return rule.toObject();
+  return createdBudgetRule.toObject();
 }
 
 async function updateActiveRule(ruleData) {
   validateBudgetRulePercentages(ruleData);
 
-  const currentRule = await BudgetRule.findOne({ active: true }).sort({
-    updateAt: -1,
+  const currentBudgetRule = await BudgetRule.findOne({ active: true }).sort({
+    updatedAt: -1,
   });
 
-  if (currentRule) {
-    currentRule.set({
+  if (currentBudgetRule) {
+    currentBudgetRule.set({
       needsPercent: Number(ruleData.needsPercent),
       wantsPercent: Number(ruleData.wantsPercent),
       investmentsPercent: Number(ruleData.investmentsPercent),
       active: true,
     });
 
-    await currentRule.save();
+    await currentBudgetRule.save();
 
-    return currentRule.toObject();
+    return currentBudgetRule.toObject();
   }
 
-  const newRule = await BudgetRule.create({
+  const createdBudgetRule = await BudgetRule.create({
     needsPercent: Number(ruleData.needsPercent),
     wantsPercent: Number(ruleData.wantsPercent),
     investmentsPercent: Number(ruleData.investmentsPercent),
     active: true,
   });
 
-  return newRule.toObject();
+  return createdBudgetRule.toObject();
 }
 
 async function deactivateAll() {
