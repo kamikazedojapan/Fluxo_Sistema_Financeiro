@@ -2,6 +2,8 @@ const mongoose = require('mongoose');
 
 const { Schema } = mongoose;
 
+const VALID_BUDGET_GROUPS = ['needs', 'wants', 'investments']
+
 const transactionSchema = new Schema(
     {
         type: {
@@ -36,8 +38,18 @@ const transactionSchema = new Schema(
 
         budgetGroup: {
             type: String,
-            enum: ['needs', 'wants', 'investments'],
-            required: [true, 'O grupo financeiro é obrigatório.'],
+            default: null,
+            validate: {
+                validator(value) {
+                    if (this.type === 'expenses') {
+                        return VALID_BUDGET_GROUPS.includes(value);
+                    }
+
+                    return value === null || value === undefined || VALID_BUDGET_GROUPS.includes(value);
+                },
+                message:
+                    'O grupo financeiro deve ser needs, wants ou investments para despesas.'
+            },
         },
 
         description: {

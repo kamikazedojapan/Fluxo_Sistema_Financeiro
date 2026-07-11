@@ -261,7 +261,7 @@ Apenas valores positivos acumulam para o próximo mês.
     date: String,
     categoryId: objectId,
     categoryName: String,
-    budgetGroup: "nedds" | "wants" | "investments",
+    budgetGroup: "needs" | "wants" | "investments",
     description: String,
     isRecurring: Boolean,
     isPaid: Boolean,
