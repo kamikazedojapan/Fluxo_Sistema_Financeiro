@@ -1,7 +1,12 @@
+
 const {
   transactionRepository,
   budgetRuleRepository,
 } = require('../../infrastructure/database/repositories');
+
+const {
+  calculateBudgetRuleRollover,
+} = require('../../domain/rollover/rolloverCalculator');
 
 const BUDGET_GROUP_LABELS = {
   needs: 'Necessidades/Custos',
@@ -156,65 +161,124 @@ async function getCashFlowReport(query = {}) {
   };
 }
 
-async function getBudgetRuleReport(query = {}) {
-  const filters = buildPeriodFilters(query);
-  const activeRule = await budgetRuleRepository.createDefaultIfNotExists();
-
-  const incomeCents = await transactionRepository.sumByType('income', filters);
-  const expenseByGroup = await transactionRepository.sumByBudgetGroup(filters);
-
-  const spentByGroup = expenseByGroup.reduce((accumulator, item) => {
-    accumulator[item._id] = item.totalCents;
-    return accumulator;
-  }, {});
-
-  const groups = [
-    {
-      key: 'needs',
-      label: BUDGET_GROUP_LABELS.needs,
-      percent: activeRule.needsPercent,
-    },
-    {
-      key: 'wants',
-      label: BUDGET_GROUP_LABELS.wants,
-      percent: activeRule.wantsPercent,
-    },
-    {
-      key: 'investments',
-      label: BUDGET_GROUP_LABELS.investments,
-      percent: activeRule.investmentsPercent,
-    },
-  ].map((group) => {
-    const limitCents = Math.round((incomeCents * group.percent) / 100);
-    const spentCents = spentByGroup[group.key] || 0;
-    const avaliableCents = Math.max(limitCents - spentCents, 0);
-    const exceededCents = Math.max(spentCents - limitCents, 0);
-
-    return {
-      ...group,
-      limitCents,
-      spentCents,
-      avaliableCents,
-      exceededCents,
-      limit: toMoney(limitCents),
-      spent: toMoney(spentCents),
-      avaliable: toMoney(avaliableCents),
-      exceeced: toMoney(exceededCents),
-    };
-  });
+function getCurrentMonthYear() {
+  const now = new Date();
 
   return {
-    filters,
+    month: now.getMonth() + 1,
+    year: now.getFullYear(),
+  };
+}
+
+function groupTransactionByMonthForRollover(transactions = []) {
+  const monthlyMap = new Map();
+
+  transactions.forEach((transaction) => {
+    const month = Number(transaction.date.slice(5, 7));
+
+    if (!monthlyMap.has(month)) {
+      monthlyMap.set(month, {
+        month,
+        incomeCents: 0,
+        spentByGroup: {
+          needs: 0,
+          wants: 0,
+          investments: 0,
+        },
+      });
+    }
+
+    const summary = monthlyMap.get(month);
+
+    if (transaction.type === 'income') {
+      summary.incomeCents += transaction.amountCents;
+    }
+
+    if (transaction.type === 'expense' && transaction.budgetGroup) {
+      summary.spentByGroup[transaction.budgetGroup] =
+        Number(summary.spentByGroup[transaction.budgetGroup] || 0) +
+        Number(transaction.amountCents || 0);
+    }
+  });
+
+  return Array.from(monthlyMap.values()).sort((a, b) => a.month - b.month);
+}
+
+function formatRolloverGroup(group) {
+  return {
+    key: group.group,
+    label: BUDGET_GROUP_LABELS[group.group],
+    percent: group.percent,
+
+    baseLimitCents: group.baseLimitCents,
+    accumulatedLimitCents: group.accumulatedLimitCents,
+    totalLimitCents: group.totalLimitCents,
+    spentCents: group.spentCents,
+    avaliableCents: group.avaliableCents,
+    exceecedCents: group.exceecedCents,
+    rolloverToNextMonthCents: group.rolloverToNextMonthCents,
+
+    baseLimit: toMoney(group.baseLimitCents),
+    accumulatedLimit: toMoney(group.accumulatedLimitCents),
+    totalLimit: toMoney(group.totalLimitCents),
+    spent: toMoney(group.spentCents),
+    available: toMoney(group.availableCents),
+    exceeded: toMoney(group.exceededCents),
+    rolloverToNextMonth: toMoney(group.rolloverToNextMonthCents),
+
+    // Compatibilidade com o formato antigo:
+    limitCents: group.totalLimitCents,
+    limit: toMoney(group.totalLimitCents),
+  }
+}
+
+async function getBudgetRuleReport(query = {}) {
+  const currentPeriod = getCurrentMonthYear();
+
+  const targetMonth = normalizeMonth(query.month) || currentPeriod.month;
+  const targetYear = normalizeYear(query.year) || currentPeriod.year;
+
+  const activeRule = await budgetRuleRepository.createDefaultIfNotExists();
+
+  const transactions = await transactionRepository.findAll({
+    year: targetYear,
+  });
+
+  const monthlySummaries = groupTransactionByMonthForRollover(transactions);
+
+  const rolloverResult = calculateBudgetRuleRollover({
+    monthlySummaries,
+    budgetRule: activeRule,
+    targetMonth,
+  });
+
+  const targetMonthSummary = monthlySummaries.find(
+    (summary) => summary.month === targetMonth
+  );
+
+  const incomeCents = targetMonthSummary?.incomeCents || 0;
+
+  return {
+    filters: {
+      month: targetMonth,
+      year: targetYear,
+    },
     incomeCents,
     income: toMoney(incomeCents),
     rule: {
-      id: activeRule._id.toString(),
+      id: activeRule._id?.toString(),
       needsPercent: activeRule.needsPercent,
       wantsPercent: activeRule.wantsPercent,
       investmentsPercent: activeRule.investmentsPercent,
       active: activeRule.active,
     },
-    groups,
+    groups: rolloverResult.groups.map(formatRolloverGroup),
+    rolloverHistory: rolloverResult.history.map((monthResult) => ({
+      month: monthResult.month,
+      incomeCents: monthResult.incomeCents,
+      income: toMoney(monthResult.incomeCents),
+      groups: monthResult.groups.map(formatRolloverGroup),
+    })),
   };
 }
 

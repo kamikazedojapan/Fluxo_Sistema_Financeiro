@@ -42,9 +42,9 @@ function calculateMonthGroups({
     const spentCents = Number(spentByGroup[group] || 0);
 
     const availableCents = Math.max(totalLimitCents - spentCents, 0);
-    const exceeded = Math.max(spentCents - totalLimitCents, 0);
+    const exceededCents = Math.max(spentCents - totalLimitCents, 0);
 
-    nextRollover[group] = avaliableCents;
+    nextRollover[group] = availableCents;
 
     return {
       group,
