@@ -8,6 +8,7 @@ const savingsGoalRoutes = require('./savingsGoalRoutes');
 const transactionRoutes = require('./transactionRoutes');
 const categoryRoutes = require('./categoryRoutes');
 const budgetRuleRoutes = require('./budgetRuleRoutes');
+const budgetGroupTransferRoutes = require('./budgetGroupTransferRoutes');
 const reportRoutes = require('./reportRoutes');
 
 const router = express.Router();
@@ -18,6 +19,11 @@ router.use('/savings-goal', databaseMiddleware, savingsGoalRoutes);
 router.use('/transactions', databaseMiddleware, transactionRoutes);
 router.use('/categories', databaseMiddleware, categoryRoutes);
 router.use('/budget-rule', databaseMiddleware, budgetRuleRoutes);
+router.use(
+  '/budget-group-transfers',
+  databaseMiddleware,
+  budgetGroupTransferRoutes
+);
 router.use('/reports', databaseMiddleware, reportRoutes);
 
 // Compatibilidade temporária com a rota antiga do Fluxo
